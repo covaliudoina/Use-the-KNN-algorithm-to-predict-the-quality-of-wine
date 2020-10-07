@@ -1,0 +1,125 @@
+---
+title: "Wine Quality Prediction"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Installation of the necessary packages (remove the # to install the packages):
+
+```{r}
+#install.packages("class", repos="http://cran.us.r-project.org")
+#install.packages("gmodels", repos="http://cran.us.r-project.org")
+library("class")
+library("gmodels")
+#install.packages("corrplot")
+library("corrplot")
+```
+
+# Import the wine quality dataset.
+```{r}
+
+wine_quality<-read.csv2(file='C://Users/Doina/Desktop/winequality-white2.csv',
+header = T, sep = ";", dec = ".",stringsAsFactors = FALSE)
+```
+
+
+# 1.Check the data characteristics. Is there missing data?
+
+
+```{r}
+str(wine_quality)
+sum(is.na(wine_quality))
+
+# There is no missing values
+```
+
+
+
+#2.What is the correlation between the attributes other than wine quality
+```{r}
+correlations<-cor(wine_quality[-c(12)])
+correlations
+corrplot(correlations, type = "lower")
+# There is a very strong correlation between density and residual sugar,
+# a strong correlation between total.sulfur.dioxide and free.sulfur.dioxide,
+# a moderate correlation between density and total.sulfur.dioxide
+# a strong negative correlation between alcohol and density
+# a moderate negative correlation between fixed.acidity and ph
+# a moderate negative correlation between residual.sugar and alcohol
+# a moderate negative correlation between total.sulfur.dioxide and alcohol
+# a moderate correlation between total.sulfur.dioxide and residual sugar
+
+```
+
+
+# 3.Graph the frequency distribution of wine quality.
+
+
+```{r}
+hist(wine_quality[,12], main="Wine quality distribution"  )
+```
+#4.Reduce the levels of rating for quality to three levels as high, medium and low.
+
+```{r}
+wine_quality$quality<-as.factor(wine_quality$quality)
+wine_quality$quality<-factor(wine_quality$quality, levels = c("3",'4','5','6','7','8','9'),
+labels = c("low","low","low","medium","medium","high", "high"))
+# as the database describes the quality of the the wine according to 10 levels, 
+#but in the database range between  3 and 9, I considered that levels: [3-5]="low",
+#[6-7]="medium", [8-9]="high"
+str(wine_quality)
+
+
+```
+
+# 5.Normalize the data set
+
+```{r}
+normalize <- function(x) {
+return ((x - min(x)) / (max(x) - min(x))) }
+wine_quality_n <- as.data.frame(lapply(wine_quality[-c(12)], normalize))
+wine_quality_n <- cbind(wine_quality_n,wine_quality$quality)
+head(wine_quality_n)
+
+```
+
+# 6.Divide the data to training and testinggroups
+
+
+```{r}
+set.seed(1)
+index <- sample(1:nrow(wine_quality_n), 0.7 *nrow(wine_quality_n))
+wine_quality_train <- wine_quality_n[index,]
+wine_quality_test <- wine_quality_n[-index,]
+
+
+
+```
+
+# 7.Use the KNN algorithm to predict the quality of wine using its attributes.
+```{r}
+wine_quality_train_labels <- wine_quality_train[,12]
+wine_quality_test_labels <- wine_quality_test[,12]
+
+wine_quality_prediction<- knn(train = wine_quality_train[,1:11], test =wine_quality_test[,1:11],
+cl = wine_quality_train[,12], k=7)
+```
+
+# 8.Evaluate the model performance 
+
+```{r}
+CrossTable(x=wine_quality_test_labels, y=wine_quality_prediction, prop.chisq=FALSE)
+
+#The accuracy of the model =(TP+TN)/N= (297+757+0)/1470=71.7%. 
+#We can observe that the model is not very good at predicting the high quality wines,
+#but The model could be improved if the dataset whould be balanced. 
+#To begin with the high quality has very few entries in the test set, so the algorithm
+#is bias towards the majority, the medium quality wine.
+```
+
